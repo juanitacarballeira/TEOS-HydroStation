@@ -1,0 +1,158 @@
+---
+title: "TEOS Hydrostation Data Lab"
+author: "Juanita Carballeira"
+date: "2023-03-07"
+output: html_document
+  #prettydoc::html_pretty:
+    #theme: architect
+   #highlight: github
+---
+
+## Load required libraries
+```{r message = FALSE, warning = FALSE}
+#install.packages("gws")
+library(prettydoc)
+library(tidyverse)
+library(gsw)
+library(readr)
+```
+
+## Now we need to import our data
+```{r message = FALSE, warning = FALSE}
+hydrostation_bottle <- read_delim("hydrostation_bottle.txt", 
+    delim = "\t", escape_double = FALSE, 
+    col_names = FALSE, trim_ws = TRUE, skip = 31)
+
+hydrostation_bottle_names <- read_csv("hydrostation_bottle.txt", 
+    skip = 30)
+
+colnames(hydrostation_bottle) = colnames(hydrostation_bottle_names)
+#view(hydrostation_bottle)
+```
+
+## Hydrostation S Discrete Bottle Data for years 1955 through December 2020.
+
+### Variable Names and Units
+
+- yyyymmdd = Year Month Day   
+- decy   = Decimal Year     
+- time   = Time (hhmm)      
+- latN   = Latitude (Deg N) 
+- lonW   = Longitude (Deg W)
+- Depth  = Depth (m)                  
+-Temp   = Temperature ITS-90 (C) 
+- Pres   = CTD Pressure (dbar)   
+- CTD_S  = CTD Salinity (PSS-78)      
+- Sal1   = Salinity-1 (PSS-78)        
+- Sig-th = Sigma-Theta (kg/m^3)       
+- O2(1)  = Oxygen-1 (umol/kg)          
+- OxFixT = Oxygen Fix Temp (C)        
+- Anom1  = Oxy Anomaly-1 (umol/kg)    
+Quality flags
+- -999  = No data
+- 0 = Less than detection limit
+```{r}
+# lets first plot the data
+hydrostation_bottle %>% 
+  filter(`Sig-th`!= -999) %>% # filter out -999 no data flag
+  ggplot()+geom_point(aes(x=decy, y = `Sig-th`)) # hard to interpret even w no -999s
+
+hydrostation_bottle %>% 
+  filter(`Sig-th`!= -999 & Depth <20) %>% # filter out -999 no data flag and by upper 20m
+  ggplot()+geom_line(aes(x=decy, y = `Sig-th`)) # line shows seasonality 
+# clear seasonal signal for sigma-theta, lets see how this compares to temp
+hydrostation_bottle %>% 
+  filter(`Sig-th`!= -999 & Depth <20) %>% # filter out -999 no data flag and by upper 20m
+  ggplot()+geom_point(aes(x=Temp, y = `Sig-th`))
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+?gsw
+?gsw_sigma0
+
+?gsw_SA_from_SP
+#practical salinity
+#sea pressure dbar
+#longitude
+#latitude
+
+
+##plot pressure data-missing before 1980s
+hydrostation_bottle%>%
+  ggplot()+geom_point(aes(x=decy,y=Pres))
+
+#we have depth for time series
+  
+hydrostation_bottle %>%
+  ggplot()+
+  geom_point(aes(x=decy,y=Depth))
+
+##Add pressure column
+hydrostation_bottle=
+  hydrostation_bottle %>%
+  mutate(Pres_gsw=gsw_p_from_z(Depth*-1,latN))
+
+
+  
+hydrostation_bottle%>%
+  ggplot()+
+  geom_point(aes(x=decy, y=Sal1))
+
+hydrostation_bottle=
+  hydrostation_bottle%>%
+  mutate(Pres_gsw=gsw_p_from_z(Depth*-1,latN))%>%
+  mutate(s_abs_gsw=gsw_SA_from_SP(Sal1,Pres_gsw,360-lonW,latN))
+
+#check it!
+hydrostation_bottle%>%
+  ggplot()+
+  geom_point(aes(x=decy,y=S_abs_gsw))
+  
+#how else can you check data
+hydrostation_bottle%>%
+  filter(Sal1!=-999)%>%
+  ggplot()+
+  geom_point(aes(c=Sal1,y=S_abs_gsw))
+
+
+#we need conservative temperature
+#we need absolute salinity in situ-temp (ITS-90)
+
+###calculate conserv temp
+HydroS=
+hydrostation_bottle=
+  hydrostation_bottle%>%
+  mutate(Pres_gsw=gsw_p_from_z(Depth*-1,latN))%>%
+  mutate(s_abs_gsw=gsw_SA_from_SP(Sal1,Pres_gsw,360-lonW,latN))%>%
+  mutate(T_cons_gsw=gsw_CT_from_t(S_abs_gsw,Temp,Pres_gsw))%>%
+  mutate(Sig_th_gsw=gsw_sigma0(s_abs_T_cons_gsw))
+
+HydroS%>%
+  filter(`Sig-th`!=-999)%>%
+  ggplot()+
+  geom_point(aes(x=`Sig-th`,y=Sig_th_gsw))
+
+HydroS %>% 
+  filter(Sig_th_gsw<0) %>% 
+  View()
+
+
+## Homework
+#something like select or combination of filters
+#how ro replace Hydry a and b in a same argument.
+
+         
+
+
+
+
+  
+```
+
