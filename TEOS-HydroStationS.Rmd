@@ -108,7 +108,7 @@ hydrostation_bottle%>%
 hydrostation_bottle=
   hydrostation_bottle%>%
   mutate(Pres_gsw=gsw_p_from_z(Depth*-1,latN))%>%
-  mutate(s_abs_gsw=gsw_SA_from_SP(Sal1,Pres_gsw,360-lonW,latN))
+  mutate(S_abs_gsw=gsw_SA_from_SP(Sal1,Pres_gsw,360-lonW,latN))
 
 #check it!
 hydrostation_bottle%>%
@@ -119,7 +119,7 @@ hydrostation_bottle%>%
 hydrostation_bottle%>%
   filter(Sal1!=-999)%>%
   ggplot()+
-  geom_point(aes(c=Sal1,y=S_abs_gsw))
+  geom_point(aes(x=Sal1,y=S_abs_gsw))
 
 
 #we need conservative temperature
@@ -127,14 +127,13 @@ hydrostation_bottle%>%
 
 ###calculate conserv temp
 HydroS=
-hydrostation_bottle=
   hydrostation_bottle%>%
   mutate(Pres_gsw=gsw_p_from_z(Depth*-1,latN))%>%
   mutate(s_abs_gsw=gsw_SA_from_SP(Sal1,Pres_gsw,360-lonW,latN))%>%
   mutate(T_cons_gsw=gsw_CT_from_t(S_abs_gsw,Temp,Pres_gsw))%>%
-  mutate(Sig_th_gsw=gsw_sigma0(s_abs_T_cons_gsw))
+  mutate(Sig_th_gsw=gsw_sigma0(s_abs_gsw,T_cons_gsw))
 
-HydroS%>%
+HydroS %>%
   filter(`Sig-th`!=-999)%>%
   ggplot()+
   geom_point(aes(x=`Sig-th`,y=Sig_th_gsw))
@@ -143,16 +142,79 @@ HydroS %>%
   filter(Sig_th_gsw<0) %>% 
   View()
 
+HydroS_corrected_a =
+  HydroS %>% 
+  filter(Sig_th_gsw<0) %>%
+  mutate(S_abs_gsw=gsw_SA_from_SP(CTD_S,Pres_gsw,360-lonW,latN)) %>% 
+  mutate(T_cons_gsw = gsw_CT_from_t(S_abs_gsw,Temp,Pres_gsw)) %>% 
+  mutate(Sig_th_gsw = gsw_sigma0(S_abs_gsw,T_cons_gsw))
+
+HydroS_corrected_b =
+  HydroS %>% 
+  filter(Sig_th_gsw>0)
+
+HydroS_corrected = rbind(HydroS_corrected_a, HydroS_corrected_b) 
+
+HydroS_corrected %>% 
+  filter(`Sig-th`!= -999) %>% 
+  ggplot()+
+  geom_point(aes(x=`Sig-th`, y=Sig_th_gsw))
+
+
+HydroS_corrected %>% 
+  ggplot()+
+  geom_point(aes(x=Sig_th_gsw, y = Depth))+
+  scale_y_reverse()+
+  scale_x_continuous(position ="top")+
+  xlab(expression(paste(sigma[theta]," (kg m"^"-3",")")))+
+  ylab("Depth(m)")
+```
+
+
+```{r}
+library(plotly)
+HydroS_shallow = HydroS_corrected %>% 
+  filter(Depth<30)
+sig_theta_tm = lm(Sig_th_gsw~decy,data =  HydroS_shallow) # y (Sig) is a function of x(decy), lm(y~x,data = data )
+summary(sig_theta_tm)
+plot = HydroS_shallow %>% 
+  ggplot()+
+  geom_point(aes(x=decy, y=Sig_th_gsw))+
+  geom_line(aes(x=decy, y=Sig_th_gsw))+
+  geom_smooth(aes(x=decy, y=Sig_th_gsw),method = "lm")+
+  theme_classic()
+ggplotly(plot)
+
 
 ## Homework
 #something like select or combination of filters
 #how ro replace Hydry a and b in a same argument.
 
-         
-
-
-
-
-  
+        
+            
 ```
+# Lab Assigment 
+
+1. pick question
+2. Produce a plot and statistical summary using lm()
+3. Describe results, summary and answer question
+4. Compile into lab report 
+
+Potential
+1. How does temp, salinity, sigma-theta covary
+2. Relationship between sigma-theta and oxygen
+3. Relationship with any of parameters witth depth?
+time within a range over time?
+4. Seasonal difference between parameters. 
+
+```{r}
+Homework = hydroS_corrected %>% 
+  filter(`O2(1)`!= -999) %>% 
+  filter(Depth < 50)
+  #mutate(month = substr(yyyymmd,5,6))
+ #mutate(month=as.numeric(substr(yyyymmd,5,6))) %>% 
+  #mutate(season =ifelse(month==12|month==1|month==2|month==3,'winter',ifelse(month==8|month==9|month==10,'summer',''))) # adds seasons to data
+
+```
+
 
