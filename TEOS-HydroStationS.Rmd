@@ -64,16 +64,10 @@ hydrostation_bottle %>%
 hydrostation_bottle %>% 
   filter(`Sig-th`!= -999 & Depth <20) %>% # filter out -999 no data flag and by upper 20m
   ggplot()+geom_point(aes(x=Temp, y = `Sig-th`))
-```
 
+```
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
-
-
-```{r}
 ?gsw
 ?gsw_sigma0
 
@@ -99,21 +93,25 @@ hydrostation_bottle=
   hydrostation_bottle %>%
   mutate(Pres_gsw=gsw_p_from_z(Depth*-1,latN))
 
-
-  
-hydrostation_bottle%>%
+hydrostation_bottle %>% 
   ggplot()+
-  geom_point(aes(x=decy, y=Sal1))
+  geom_point(aes(x=Pres,y=Pres_gsw))
+#Strong 1:1 agreement
+  
+hydrostation_bottle %>% 
+  ggplot()+geom_point(aes(x=decy,y=latN))
 
 hydrostation_bottle=
   hydrostation_bottle%>%
   mutate(Pres_gsw=gsw_p_from_z(Depth*-1,latN))%>%
   mutate(S_abs_gsw=gsw_SA_from_SP(Sal1,Pres_gsw,360-lonW,latN))
 
+view(hydrostation_bottle)
+
 #check it!
-hydrostation_bottle%>%
-  ggplot()+
-  geom_point(aes(x=decy,y=S_abs_gsw))
+#hydrostation_bottle%>%
+  #ggplot()+
+ # geom_point(aes(x=decy,y=S_abs_gsw))
   
 #how else can you check data
 hydrostation_bottle%>%
@@ -121,26 +119,45 @@ hydrostation_bottle%>%
   ggplot()+
   geom_point(aes(x=Sal1,y=S_abs_gsw))
 
-
+View(hydrostation_bottle)
 #we need conservative temperature
 #we need absolute salinity in situ-temp (ITS-90)
 
 ###calculate conserv temp
 HydroS=
   hydrostation_bottle%>%
+  filter(Sal1!=-999) %>%
   mutate(Pres_gsw=gsw_p_from_z(Depth*-1,latN))%>%
-  mutate(s_abs_gsw=gsw_SA_from_SP(Sal1,Pres_gsw,360-lonW,latN))%>%
-  mutate(T_cons_gsw=gsw_CT_from_t(S_abs_gsw,Temp,Pres_gsw))%>%
-  mutate(Sig_th_gsw=gsw_sigma0(s_abs_gsw,T_cons_gsw))
+  mutate(S_abs_gsw=gsw_SA_from_SP(Sal1,Pres_gsw,360-lonW,latN))%>%
+  mutate(T_cons_gsw=gsw_CT_from_t(S_abs_gsw,Temp,Pres_gsw))
+  
+HydroS %>% 
+  filter(Temp!= -999) %>% 
+  ggplot()+
+  geom_point(aes(x=Temp, y =T_cons_gsw))
 
-HydroS %>%
+#Add line to calculate conservative temp
+HydroS=
+  hydrostation_bottle %>% 
+  filter(Sal1!=-999) %>%
+  mutate(Pres_gsw = gsw_p_from_z(Depth*-1,latN,)) %>% 
+  mutate(S_abs_gsw=gsw_SA_from_SP(Sal1,Pres_gsw,360-lonW,latN)) %>% 
+  mutate(T_cons_gsw = gsw_CT_from_t(S_abs_gsw,Temp,Pres_gsw)) %>% 
+  mutate(Sig_th_gsw = gsw_sigma0(S_abs_gsw,T_cons_gsw))
+
+
+HydroS%>%
   filter(`Sig-th`!=-999)%>%
   ggplot()+
   geom_point(aes(x=`Sig-th`,y=Sig_th_gsw))
 
 HydroS %>% 
-  filter(Sig_th_gsw<0) %>% 
-  View()
+  filter(Sig_th_gsw<0)  
+  View(HydroS)
+```
+
+
+```{r}
 
 HydroS_corrected_a =
   HydroS %>% 
@@ -149,11 +166,15 @@ HydroS_corrected_a =
   mutate(T_cons_gsw = gsw_CT_from_t(S_abs_gsw,Temp,Pres_gsw)) %>% 
   mutate(Sig_th_gsw = gsw_sigma0(S_abs_gsw,T_cons_gsw))
 
+View(HydroS_corrected_a)
+
 HydroS_corrected_b =
   HydroS %>% 
   filter(Sig_th_gsw>0)
 
 HydroS_corrected = rbind(HydroS_corrected_a, HydroS_corrected_b) 
+
+View(HydroS_corrected)
 
 HydroS_corrected %>% 
   filter(`Sig-th`!= -999) %>% 
@@ -168,6 +189,8 @@ HydroS_corrected %>%
   scale_x_continuous(position ="top")+
   xlab(expression(paste(sigma[theta]," (kg m"^"-3",")")))+
   ylab("Depth(m)")
+
+View(HydroS_corrected)
 ```
 
 
@@ -208,12 +231,12 @@ time within a range over time?
 4. Seasonal difference between parameters. 
 
 ```{r}
-Homework = hydroS_corrected %>% 
-  filter(`O2(1)`!= -999) %>% 
-  filter(Depth < 50)
-  #mutate(month = substr(yyyymmd,5,6))
- #mutate(month=as.numeric(substr(yyyymmd,5,6))) %>% 
-  #mutate(season =ifelse(month==12|month==1|month==2|month==3,'winter',ifelse(month==8|month==9|month==10,'summer',''))) # adds seasons to data
+Homework = HydroS_corrected %>% 
+  filter(Temp) %>% 
+  filter(Sal1)
+  mutate(month = yyyymmdd,substr(,5,6))
+  mutate(month=as.numeric(substr(yyyymmdd,5,6))) %>% 
+  mutate(season =ifelse(month==12|month==1|month==2|month==3,'winter',ifelse(month==8|month==9|month==10,'summer',''))) # adds seasons to data
 
 ```
 

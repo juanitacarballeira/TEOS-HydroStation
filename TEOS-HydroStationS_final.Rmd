@@ -1,0 +1,222 @@
+---
+title: "TEOS-HydroStationS_Class"
+author: Juanita Carballeira
+output: html_document
+date: '2023-03-18'
+---
+
+## Requiered Libraries
+```{r, message=FALSE}
+library(tidyverse)
+#install.packages ("seacarb")
+#Gibbs Seawater
+library(seacarb)
+library(gsw)
+library(ggplot2)
+```
+
+
+## Import the data
+```{r message=FALSE, warning=FALSE}
+hydrostation_bottle <- read_delim("hydrostation_bottle.txt", 
+    delim = "\t", escape_double = FALSE, 
+    col_names = FALSE, trim_ws = TRUE, skip = 31)
+hydrostation_bottle_names <- read_csv("hydrostation_bottle.txt", 
+    skip = 30)
+#Fix names for the dataset
+colnames(hydrostation_bottle) = colnames(hydrostation_bottle_names)
+view(hydrostation_bottle)
+```
+## Variables Names and Units
+- yyyymmdd = Year Month Day   
+- decy   = Decimal Year     
+- time   = Time (hhmm)      
+- latN   = Latitude (Deg N) 
+- lonW   = Longitude (Deg W)
+- Depth  = Depth (m)                  
+- Temp   = Temperature ITS-90 (C) 
+- Pres   = CTD Pressure (dbar)   
+- CTD_S  = CTD Salinity (PSS-78)      
+- Sal1   = Salinity-1 (PSS-78)        
+- Sig-th = Sigma-Theta (kg/m^3) - density of seawater at a given temperature (Density - 1000)   
+- O2(1)  = Oxygen-1 (umol/kg)          
+- OxFixT = Oxygen Fix Temp (C)        
+- Anom1  = Oxy Anomaly-1 (umol/kg)    
+
+## Quality flags
+*  -999  = No data
+*  0 = Less than detection limit
+
+```{r}
+hydrostation_bottle %>% 
+  filter(`Sig-th` != -999 & Depth < 20) %>% 
+  ggplot()+
+  geom_point(aes(x = decy, y = `Sig-th`))+
+  geom_line(aes(x =decy, y = `Sig-th` ))
+#Clear Seasonal signal for sigma-theta
+hydrostation_bottle %>% 
+  filter(`Sig-th` != -999 & Depth < 20) %>% 
+  ggplot()+
+  geom_point(aes(x =Temp, y = `Sig-th` ))
+#Density and Temperature are strongly correlated, but there appears to be two outliners that we will likely need to address at some point
+#We only have density data from 1988-present, but temperature and salinity data from 1950s-present, this mean i can calculate seawater density from 1950s- present, by using TEOS-10. 
+```
+
+## TEOS-10 Toolbox in package seacarb
+
+```{r, include=FALSE, echo=FALSE}
+#?gsw
+#?gsw_sigma0 # It said we need absolute salinity and conservative temperature (SA (g/kg),CT (°C))
+#?gsw_SA_from_SP #Absolute Salinity from Practical Salinity
+#Practical Salinity*
+#Sea pressure (dbar)
+#Longitude
+#Latitude
+hydrostation_bottle %>% 
+  ggplot()+
+  geom_point(aes(x = decy, y = Pres ))
+#Not for all the time series. Missing from 1980 
+hydrostation_bottle %>% 
+  ggplot()+
+  geom_point(aes(x = decy, y = Depth ))
+#We have Depth for the entire time series
+#?gsw_p_from_z()
+hydrostation_bottle =  hydrostation_bottle %>% 
+  mutate(Pres_gsw = gsw_p_from_z(Depth*-1, latN))
+hydrostation_bottle %>% 
+  ggplot()+
+  geom_point(aes(x = Pres, y = Pres_gsw))
+# We see strong 1:1 agreement between measured pressure and calculated pressure
+#Checking lat, lon, and salinity data
+hydrostation_bottle %>% 
+  ggplot()+
+  geom_point(aes(x = decy, y = CTD_S))
+hydrostation_bottle =  hydrostation_bottle %>% 
+  mutate(Pres_gsw = gsw_p_from_z(Depth*-1, latN)) %>% 
+  mutate(s_abs_gsw = gsw_SA_from_SP(Sal1, Pres_gsw,360-lonW, latN))
+#Checking the Absolute salinity
+hydrostation_bottle %>% 
+  ggplot()+
+  geom_point(aes(x = decy, y = s_abs_gsw))
+#Plotting the ratio for Absoute Salinity (created) vs Sal1 (Given in the dataset)
+hydrostation_bottle %>% 
+  filter(Sal1!= -999) %>% 
+  ggplot()+
+  geom_point(aes(x = Sal1, y = s_abs_gsw))
+#Temperature to Conservative Temperature
+#?gsw_CT_from_t
+HydroS =  hydrostation_bottle %>% 
+  filter(Sal1!= -999) %>% 
+  mutate(Pres_gsw = gsw_p_from_z(Depth*-1, latN)) %>% 
+  mutate(s_abs_gsw = gsw_SA_from_SP(Sal1, Pres_gsw,360-lonW, latN)) %>% 
+  mutate(T_Cons_gsw = gsw_CT_from_t(s_abs_gsw,Temp,Pres_gsw))
+HydroS %>% 
+  filter(Temp != -999) %>% 
+  ggplot()+
+  geom_point(aes(x = Temp, y = T_Cons_gsw))
+HydroS =  hydrostation_bottle %>% 
+  filter(Sal1 != -999 & `Sig-th` != -999) %>% 
+  mutate(Pres_gsw = gsw_p_from_z(Depth*-1, latN)) %>% 
+  mutate(s_abs_gsw = gsw_SA_from_SP(Sal1, Pres_gsw,360-lonW, latN)) %>% 
+  mutate(T_Cons_gsw = gsw_CT_from_t(s_abs_gsw,Temp,Pres_gsw)) %>% 
+  mutate(sig_theta_gsw = gsw_sigma0(s_abs_gsw,T_Cons_gsw))
+HydroS %>% 
+  filter(`Sig-th` != -999) %>% 
+  ggplot()+
+  geom_point(aes(x = `Sig-th`, y = sig_theta_gsw))
+HydroS %>% 
+  filter(sig_theta_gsw < 0) %>% 
+  view()
+```
+
+
+```{r, include=FALSE, echo=FALSE}
+HydroS_Corrected_a = HydroS %>% 
+  filter(sig_theta_gsw<0) %>% 
+  mutate(s_abs_gsw = gsw_SA_from_SP(CTD_S, Pres_gsw,360-lonW, latN)) %>% 
+  mutate(T_Cons_gsw = gsw_CT_from_t(s_abs_gsw,Temp,Pres_gsw)) %>% 
+  mutate(sig_theta_gsw = gsw_sigma0(s_abs_gsw,T_Cons_gsw)) 
+  
+HydroS_Corrected_b = HydroS %>% 
+  filter(sig_theta_gsw>0) 
+#The corrected one. And last one
+
+HydroS_corrected = rbind(HydroS_Corrected_a,HydroS_Corrected_b) 
+HydroS_corrected %>% 
+  ggplot()+
+  geom_point(aes(x = sig_theta_gsw, y = Depth))+
+  scale_y_reverse()+
+  scale_x_continuous(position = "top")+
+  theme_classic()+
+  xlab(expression(paste(sigma[theta], "(kg m"^"-3",")")))+
+  ylab("Depth (m)")
+                     
+                     
+```
+
+#Has surface sigma theta decreased over time? 
+
+```{r}
+HydroS_Shallow = HydroS_corrected %>% 
+  filter(Depth<30)
+?lm
+#lm(y is a function(~) of x)
+lm(sig_theta_gsw~decy,data = HydroS_Shallow)
+#y = mx+b
+#Coeficients: intercept = b, decy = m 
+#Sig_theta_gws = -0.01563*decy + 56.28
+#(kg/m^3) = (kg/m^3/x)*x + (kg/m^3)
+sig_theta_model = lm(sig_theta_gsw~decy,data = HydroS_Shallow)
+summary(sig_theta_model)
+library(plotly)
+Sig_decy_plot = HydroS_Shallow %>% 
+  ggplot(aes(x = decy, y = sig_theta_gsw))+
+  geom_point()+
+  geom_line()+
+  geom_smooth(method = "lm")+
+  theme_classic()
+ggplotly(Sig_decy_plot)
+```
+
+
+
+
+## Lab Assigment
+1. Pick a question (Include hypothesis)
+Is density influenced more by temperature or salinity in the surface layer? Do salinity and temperature co-vary?
+
+Hypothesis: Temperature have a greater effect on density in the surface layer.
+
+2. produce a plot and a statistical summary
+```{r}
+Surface_hydro=HydroS_corrected%>%
+  filter(Depth>100) 
+
+
+Temp_densityplot=
+  Surface_hydro%>%
+  ggplot()+
+  geom_point(aes(x=Depth,y= sig_theta_gsw))+
+  xlab('Depth (m)')+
+  ylab('Sig-theta (kg/m^3)')+
+  scale_y_reverse()+
+  scale_x_continuous(position ="top")
+
+Temp_densityplot
+
+
+```
+
+
+
+
+3. Describe your results, the summary, and answer the question
+
+4. Compile into a completed lab report using R Markdown
+
+Potential questions:
+how do temp, sal, and sigma-theta co-vary
+Is there a relationship between sigma-theta and oxygen?
+Is there a relationship of any of the parameter with depth? with time? within depth over time?
+Are there seasonal differences in any of the parameters?
+
