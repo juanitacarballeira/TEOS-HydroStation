@@ -10,13 +10,13 @@ output:
 
 ## Lab Assigment
 
-##1.  Pick a question and include hypothesis
+## 1.  Pick a question and include hypothesis
 
 Question: What is the relationship between temperature and salinity at the site? Are these variables a good indicator for stratification and is there seasonal variation?
 
 Hypothesis: Temperature is a driver for salinity, resulting in a density change which will lead to stratified water. Warmer months (summer) will have a greater stratification than colder (winter) months.
 
-##2.  Produce a plot and a statistical summary: lm model
+## 2.  Produce a plot and a statistical summary: lm model
 
 Part 1: Piping data
 
@@ -164,7 +164,7 @@ TS_summerplotlm
 ```
 
 
-##3. Describe your results, the summary, and answer the question
+## 3. Describe your results, the summary, and answer the question
 
 Temperature and Salinity Winter series linear regression:
 Winter series data showed a good linearity (R2=0.9615), and a slope of 9.37◦C/PSS. Meaning that for every 1 unit of PSS, there is a temperature increase of approximately 9.37◦C. 
