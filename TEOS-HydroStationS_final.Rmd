@@ -189,26 +189,166 @@ Hypothesis: Temperature have a greater effect on density in the surface layer.
 
 2. produce a plot and a statistical summary
 ```{r}
-Surface_hydro=HydroS_corrected%>%
-  filter(Depth>100) 
-
-
-Temp_densityplot=
-  Surface_hydro%>%
+Densityplot=
+ HydroS_corrected%>%
+  filter(Depth<150) %>% 
   ggplot()+
   geom_point(aes(x=Depth,y= sig_theta_gsw))+
   xlab('Depth (m)')+
   ylab('Sig-theta (kg/m^3)')+
   scale_y_reverse()+
-  scale_x_continuous(position ="top")
+  scale_x_continuous(position ="bottom")
 
-Temp_densityplot
+Densityplot
+```
 
+
+```{r}
+Hydro_seasonal=
+HydroS_corrected %>% 
+mutate(month = substr(yyyymmd,5,6))%>% 
+mutate(month=as.numeric(substr(yyyymmd,5,6))) %>% 
+mutate(season =ifelse(month==12|month==1|month==2|month==3,'winter',ifelse(month==8|month==9|month==10,'summer',''))) # adds seasons to data
+View(Hydro_seasonal)
+```
+
+
+```{r}
+Winter_data=
+Hydro_seasonal %>% 
+  filter(Sal1>1.150) %>% 
+  filter(season=="winter")  
+#View(Winter_data)
+max(Winter_data$Sal1,na.rm=TRUE)
+min(Winter_data$Sal1,na.rm=TRUE)
+max(Winter_data$T_Cons_gsw,na.rm=TRUE)
+min(Winter_data$T_Cons_gsw,na.rm=TRUE)
+```
+
+
+```{r}
+TS_winterplot=
+ Winter_data%>%
+  ggplot()+
+  geom_point(aes(x=T_Cons_gsw,y= Sal1),size=1,alpha=0.7)+
+  xlab('Temperature (°C)')+
+  ylab('Salinity (PSS)')+
+  scale_x_continuous(limits=c(1,24.00017))+
+  scale_y_continuous(limits=c(34.5,36.9))+
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.line = element_line(color="black"),
+        text = element_text(size=13))+
+  geom_smooth(aes(x=T_Cons_gsw, y=Sal1),method = "lm")
+TS_winterplot
+```
+
+
+```{r}
+TS_winterplotlm = lm(Sal1~T_Cons_gsw,data =  Winter_data) 
+summary(TS_winterplotlm)
+
+```
+```{r}
+Summer_data=
+Hydro_seasonal %>% 
+  filter(Sal1>1.150) %>% 
+  filter(season=="summer")  
+#View(Summer_data)
+max(Summer_data$Sal1,na.rm=TRUE)
+min(Summer_data$Sal1,na.rm=TRUE)
+max(Summer_data$T_Cons_gsw,na.rm=TRUE)
+min(Summer_data$T_Cons_gsw,na.rm=TRUE)
+```
+
+
+```{r}
+TS_summerplot=
+ Summer_data%>%
+  ggplot()+
+  geom_point(aes(x=T_Cons_gsw,y= Sal1),size=1,alpha=0.7)+
+  xlab('Temperature (°C)')+
+  ylab('Salinity (PSS)')+
+  scale_x_continuous(limits=c(1,29))+
+  scale_y_continuous(limits=c(34.0,37.5))+
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.line = element_line(color="black"),
+        text = element_text(size=13))+
+  geom_smooth(aes(x=T_Cons_gsw, y=Sal1),method = "lm")
+TS_summerplot
+```
+```{r}
+TS_summerplotlm = lm(Sal1~T_Cons_gsw,data =  Summer_data) 
+summary(TS_summerplotlm)
 
 ```
 
 
 
+
+
+
+Do Not Include
+
+```{r}
+#Relationship Sal to density summer vs winter
+Density_summerplot=
+ Hydro_seasonal%>%
+  filter(season=="summer") %>% 
+  filter(Sal1>1.150) %>% 
+  ggplot()+
+  geom_point(aes(x=Sal1,y=sig_theta_gsw))+
+  xlab('(Sal)')+
+  ylab('Density')+
+  scale_y_reverse()+
+  scale_x_continuous(position ="bottom")
+Density_summerplot
+```
+```{r}
+Density_winterplot=
+ Hydro_seasonal%>%
+  filter(season=="winter") %>% 
+  filter(Sal1>1.150) %>% 
+  ggplot()+
+  geom_point(aes(x=Sal1,y=sig_theta_gsw))+
+  xlab('(Sal)')+
+  ylab('Density')+
+  scale_y_reverse()+
+  scale_x_continuous(position ="bottom")
+Density_winterplot
+```
+```{r}
+TS_surfacewinterplot=
+ Hydro_seasonal%>%
+  filter(season=="winter") %>% 
+  filter(Depth<=100) %>% 
+  filter(Sal1>1.150) %>% 
+  ggplot()+
+  geom_point(aes(x=T_Cons_gsw,y= Sal1))+
+  xlab('Temp')+
+  ylab('Sal')+
+  scale_y_reverse()+
+  scale_x_continuous(position ="bottom")
+TS_surfacewinterplot
+```
+
+```{r}
+TS_surfacesummerplot=
+ Hydro_seasonal%>%
+  filter(season=="summer") %>% 
+  filter(Depth<=100) %>% 
+  filter(Sal1>1.150) %>% 
+  ggplot()+
+  geom_point(aes(x=T_Cons_gsw,y=Sal1))+
+  xlab('Temp)')+
+  ylab('Sal')+
+  scale_y_reverse()+
+  scale_x_continuous(position ="bottom")
+TS_surfacesummerplot
+```
 
 3. Describe your results, the summary, and answer the question
 
