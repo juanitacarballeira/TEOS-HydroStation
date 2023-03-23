@@ -230,17 +230,17 @@ min(Winter_data$T_Cons_gsw,na.rm=TRUE)
 TS_winterplot=
  Winter_data%>%
   ggplot()+
-  geom_point(aes(x=T_Cons_gsw,y= Sal1),size=1,alpha=0.7)+
-  xlab('Temperature (°C)')+
-  ylab('Salinity (PSS)')+
-  scale_x_continuous(limits=c(1,24.00017))+
-  scale_y_continuous(limits=c(34.5,36.9))+
+  geom_point(aes(x=Sal1,y= T_Cons_gsw),size=1,alpha=0.7)+
+  xlab('Salinity (PSS)')+
+  ylab('Temperature (°C)')+
+  scale_x_continuous(limits=c(34.5,36.91))+
+  scale_y_continuous(limits=c(1,24.00017))+
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         panel.background = element_blank(),
         axis.line = element_line(color="black"),
         text = element_text(size=13))+
-  geom_smooth(aes(x=T_Cons_gsw, y=Sal1),method = "lm")
+  geom_smooth(aes(x=Sal1, y=T_Cons_gsw),method = "lm")
 TS_winterplot
 ```
 
@@ -267,17 +267,17 @@ min(Summer_data$T_Cons_gsw,na.rm=TRUE)
 TS_summerplot=
  Summer_data%>%
   ggplot()+
-  geom_point(aes(x=T_Cons_gsw,y= Sal1),size=1,alpha=0.7)+
-  xlab('Temperature (°C)')+
-  ylab('Salinity (PSS)')+
-  scale_x_continuous(limits=c(1,29))+
-  scale_y_continuous(limits=c(34.0,37.5))+
+  geom_point(aes(x=Sal1,y=T_Cons_gsw),size=1,alpha=0.7)+
+  xlab('Salinity (PSS)')+
+  ylab('Temperature (°C)')+
+  scale_x_continuous(limits=c(33.5,37.5))+
+  scale_y_continuous(limits=c(1,29.5))+
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         panel.background = element_blank(),
         axis.line = element_line(color="black"),
         text = element_text(size=13))+
-  geom_smooth(aes(x=T_Cons_gsw, y=Sal1),method = "lm")
+  geom_smooth(aes(x=Sal1, y=T_Cons_gsw),method = "lm")
 TS_summerplot
 ```
 ```{r}
@@ -342,9 +342,9 @@ TS_surfacesummerplot=
   filter(Depth<=100) %>% 
   filter(Sal1>1.150) %>% 
   ggplot()+
-  geom_point(aes(x=T_Cons_gsw,y=Sal1))+
-  xlab('Temp)')+
-  ylab('Sal')+
+  geom_point(aes(x=Sal1,y=T_Cons_gsw))+
+  xlab('Sal')+
+  ylab('Temp')+
   scale_y_reverse()+
   scale_x_continuous(position ="bottom")
 TS_surfacesummerplot

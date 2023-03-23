@@ -1,44 +1,183 @@
 ---
-title: "Seawater Equation of State lab"
+title: "Seawater Hydro Station Lab"
 author: "Juanita Carballeira"
-date: "March 23, 2023`"
+date: "March 23, 2023"
 output:
   prettydoc::html_pretty:
-    theme: architect
+    theme: cayman
     highlight: github
-    
 ---
 
 ## Lab Assigment
 
-1. Pick a question and include hypothesis
+##1.  Pick a question and include hypothesis
 
-Is temperature a good predictor of Salinity? Does seasonality affect the predictability? 
+Question: What is the relationship between temperature and salinity at the site? Are these variables a good indicator for stratification and is there seasonal variation?
 
+Hypothesis: Temperature is a driver for salinity, resulting in a density change which will lead to stratified water. Warmer months (summer) will have a greater stratification than colder (winter) months.
 
-Hypothesis: Stratification will be more present in warmer months due to 
-2. produce a plot and a statistical summary
+##2.  Produce a plot and a statistical summary: lm model
+
+Part 1: Piping data
 
 ```{r}
+##Libraries used 
+library(tidyverse)
+#install.packages ("seacarb")
+library(seacarb)
+library(gsw)
+library(ggplot2)
+##Import data
+
+hydrostation_bottle <- read_delim("hydrostation_bottle.txt", 
+    delim = "\t", escape_double = FALSE, 
+    col_names = FALSE, trim_ws = TRUE, skip = 31)
+hydrostation_bottle_names <- read_csv("hydrostation_bottle.txt", 
+    skip = 30)
+
+colnames(hydrostation_bottle) = colnames(hydrostation_bottle_names)
+view(hydrostation_bottle)
+
+```
+
+```{r}
+
+hydrostation_bottle =  hydrostation_bottle %>% 
+  mutate(Pres_gsw = gsw_p_from_z(Depth*-1, latN)) %>% 
+  mutate(s_abs_gsw = gsw_SA_from_SP(Sal1, Pres_gsw,360-lonW, latN))
+
+
+HydroS =  hydrostation_bottle %>% 
+  filter(Sal1 != -999 & `Sig-th` != -999) %>% 
+  mutate(Pres_gsw = gsw_p_from_z(Depth*-1, latN)) %>% 
+  mutate(s_abs_gsw = gsw_SA_from_SP(Sal1, Pres_gsw,360-lonW, latN)) %>% 
+  mutate(T_Cons_gsw = gsw_CT_from_t(s_abs_gsw,Temp,Pres_gsw)) %>% 
+  mutate(sig_theta_gsw = gsw_sigma0(s_abs_gsw,T_Cons_gsw))
+
+```
+
+```{r}
+HydroS_Corrected_a = HydroS %>% 
+  filter(sig_theta_gsw<0) %>% 
+  mutate(s_abs_gsw = gsw_SA_from_SP(CTD_S, Pres_gsw,360-lonW, latN)) %>% 
+  mutate(T_Cons_gsw = gsw_CT_from_t(s_abs_gsw,Temp,Pres_gsw)) %>% 
+  mutate(sig_theta_gsw = gsw_sigma0(s_abs_gsw,T_Cons_gsw)) 
+  
+HydroS_Corrected_b = HydroS %>% 
+  filter(sig_theta_gsw>0) 
+
+
+HydroS_corrected = rbind(HydroS_Corrected_a,HydroS_Corrected_b) 
+
+```
+
+Part 2: Temperature and Salinity plots
+
+```{r}
+#Create season variable for summer and winter
+Hydro_seasonal=
+HydroS_corrected %>% 
+mutate(month = substr(yyyymmd,5,6))%>% 
+mutate(month=as.numeric(substr(yyyymmd,5,6))) %>% 
+mutate(season =ifelse(month==12|month==1|month==2|month==3,'winter',ifelse(month==8|month==9|month==10,'summer',''))) # adds seasons to data
+View(Hydro_seasonal)
+
+```
+
+```{r}
+#Visualize winter and summer data
+
+Winter_data=
+Hydro_seasonal %>% 
+  filter(Sal1>1.150) %>% 
+  filter(season=="winter")  
+#View(Winter_data)
+max(Winter_data$Sal1,na.rm=TRUE)
+min(Winter_data$Sal1,na.rm=TRUE)
+max(Winter_data$T_Cons_gsw,na.rm=TRUE)
+min(Winter_data$T_Cons_gsw,na.rm=TRUE)
+
+Summer_data=
+Hydro_seasonal %>% 
+  filter(Sal1>1.150) %>% 
+  filter(season=="summer")  
+#View(Summer_data)
+max(Summer_data$Sal1,na.rm=TRUE)
+min(Summer_data$Sal1,na.rm=TRUE)
+max(Summer_data$T_Cons_gsw,na.rm=TRUE)
+min(Summer_data$T_Cons_gsw,na.rm=TRUE)
+
+```
+
+```{r}
+#Plot winter data and generate lm model
+TS_winterplot=
+ Winter_data%>%
+  ggplot()+
+  geom_point(aes(x=Sal1,y= T_Cons_gsw),size=1,alpha=0.7)+
+  ggtitle("Temperature Salinity Winter Series")+
+  xlab('Salinity (PSS)')+
+  ylab('Temperature (°C)')+
+  scale_x_continuous(limits=c(34.5,36.91))+
+  scale_y_continuous(limits=c(1,24.00017))+
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.line = element_line(color="black"),
+        plot.title=element_text(hjust=.5,size=14),
+        text = element_text(size=13))+
+  geom_smooth(aes(x=Sal1, y=T_Cons_gsw),method = "lm")
+TS_winterplot
+
+TS_winterplotlm = lm(T_Cons_gsw~Sal1,data =  Winter_data) 
+summary(TS_winterplotlm)
+
+TS_winterplotlm
+
+```
+
+```{r}
+#Plot summer data and generate lm model
+TS_summerplot=
+ Summer_data%>%
+  ggplot()+
+  geom_point(aes(x=Sal1,y=T_Cons_gsw),size=1,alpha=0.7)+
+  ggtitle("Temperature Salinity Summer Series")+
+  xlab('Salinity (PSS)')+
+  ylab('Temperature (°C)')+
+  scale_x_continuous(limits=c(33.5,37.5))+
+  scale_y_continuous(limits=c(1,29.5))+
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.line = element_line(color="black"),
+        plot.title=element_text(hjust=.5,size=14),
+        text = element_text(size=13))+
+  geom_smooth(aes(x=Sal1, y=T_Cons_gsw),method = "lm")
+TS_summerplot
+
+TS_summerplotlm = lm(T_Cons_gsw~Sal1,data =  Summer_data) 
+summary(TS_summerplotlm)
+
+TS_summerplotlm
 
 ```
 
 
+##3. Describe your results, the summary, and answer the question
+
+Temperature and Salinity Winter series linear regression:
+Winter series data showed a good linearity (R2=0.9615), and a slope of 9.37◦C/PSS. Meaning that for every 1 unit of PSS, there is a temperature increase of approximately 9.37◦C. 
+
+Temperature and Salinity Summer series linear regression:
+Summer series data showed an acceptable linearity (R2= 0.8538), and a slope of 10.54◦C/PSS. Meaning that for every 1 unit of PSS, there is a temperature increase of approximately 10.54◦C. 
 
 
+Results Discussion:
 
+Plots for both summer and winter months indicate a strong correlation between temperature and salinity. Overall, temperature increase was characterized by an increase in salinity and vice versa. Data shows a thermocline which marks a transitional layer between different water masses, indicating stratification.
 
-
-
-
-
-
-## New Styles
-
-`html_pretty` currently supports three page themes (`cayman`, `tactile` and
-`architect`), and two syntax highlight styles (`github` and `vignette`).
-The theme and highlight styles can be specified in the document metadata,
-for example:
+Both plots presented greater salinity variability at higher temperatures, which could be explained by climate processes occurring at the surface layer. When comparing seasons, winter months showed less salinity differences at higher temperatures than summer months. This concurs with our predictions that in the summer months there should be less mixing expected. We can infer from the results that temperature proved to have less variability than salinity, making temperature a better predictor of changes in density. 
 
 
 
