@@ -1,0 +1,44 @@
+---
+title: "Seawater Equation of State lab"
+author: "Juanita Carballeira"
+date: "March 23, 2023`"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+    
+---
+
+## Lab Assigment
+
+1. Pick a question and include hypothesis
+
+Is temperature a good predictor of Salinity? Does seasonality affect the predictability? 
+
+
+Hypothesis: Stratification will be more present in warmer months due to 
+2. produce a plot and a statistical summary
+
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+## New Styles
+
+`html_pretty` currently supports three page themes (`cayman`, `tactile` and
+`architect`), and two syntax highlight styles (`github` and `vignette`).
+The theme and highlight styles can be specified in the document metadata,
+for example:
+
+
+
